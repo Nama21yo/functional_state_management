@@ -248,5 +248,68 @@ const pipe =
   (value) =>
     fns.reduce((acc, fn) => fn(acc), value);
 
+// Example usage and testing
+console.log("=== Functional State Management System ===");
+console.log("Initial state:", getCurrentState());
 
+// Test the system
+console.log("\n=== Testing the system ===");
+
+// Add some todos
+dispatchAction(addTodo({ text: "Learn functional programming" }));
+dispatchAction(addTodo({ text: "Build a todo app" }));
+dispatchAction(addTodo({ text: "Master React" }));
+
+console.log("After adding todos:", getCurrentState());
+
+// Toggle a todo
+const firstTodoId = appState.todos[0].id;
+dispatchAction(toggleTodo({ id: firstTodoId }));
+
+console.log("After toggling first todo:", getCurrentState());
+
+// Test undo/redo
+console.log("\n=== Testing Undo/Redo ===");
+performUndo();
+performUndo();
+performRedo();
+
+console.log("Final state after undo/redo:", getCurrentState());
+
+// Export the public API
+const StateManager = {
+  // State access
+  getCurrentState,
+  getFilteredTodos,
+
+  // Actions
+  dispatch: dispatchAction,
+
+  // Action creators
+  actions: {
+    addTodo,
+    toggleTodo,
+    deleteTodo,
+    updateTodo,
+    setFilter,
+    updateUser,
+    clearCompleted,
+  },
+
+  // History management
+  undo: performUndo,
+  redo: performRedo,
+
+  // Utilities
+  createLogger,
+  compose,
+  pipe,
+};
+
+// For browser/module usage
+if (typeof module !== "undefined" && module.exports) {
+  module.exports = StateManager;
+} else if (typeof window !== "undefined") {
+  window.StateManager = StateManager;
+}
 //
