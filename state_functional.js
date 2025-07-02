@@ -114,7 +114,7 @@ const debugLogger = createLogger("DEBUG");
 // dispatch
 const dispatchAction = (event) => {
   const loggedEvent = actionLogger(event);
-  // beffore updateing save current History
+  // before updating save current History
   stateHistory = produce(stateHistory, (draft) => {
     draft.past.push(deepClone(appState));
     draft.future = [];
@@ -126,5 +126,29 @@ const dispatchAction = (event) => {
   //! check this out
   appState = newState;
   return appState;
+};
+// curried undo function
+const createUndoAction = (currentHistory) => (currentState) => {
+  if (currentHistory.past.length === 0) {
+    console.warn("No action to undo");
+    return {
+      newState: currentState,
+      newHistory: currentHistory,
+    };
+  }
+
+  const newHistory = produce(currentHistory, (draft) => {
+    const previousState = draft.past.pop();
+    draft.future.unshift(currentState); // prepend on the first
+    return { previousState };
+  });
+
+  return {
+    newState: newHistory.previousState,
+    newHistory: {
+      past: newHistory.past,
+      future: newHistory.future,
+    },
+  };
 };
 //
