@@ -1,4 +1,4 @@
-// Immutability System Implementation
+// Immutability utility functions (simple Immer-like implementation)
 const deepClone = (obj) => {
   if (obj === null || typeof obj !== "object") return obj;
   if (obj instanceof Date) return new Date(obj.getTime());
@@ -14,34 +14,33 @@ const deepClone = (obj) => {
   }
 };
 
-// implementing Immer
 const produce = (state, updater) => {
   const draft = deepClone(state);
   updater(draft);
   return draft;
 };
 
-// single source of Truth: appState
+// 1. Single Source of Truth: appState
 let appState = {
   todos: [],
   filter: "all", // 'all', 'completed', 'pending'
   user: {
     name: "Guest",
     preferences: {
-      theme: "Light",
+      theme: "light",
     },
   },
   lastUpdated: new Date().toISOString(),
 };
 
-// history management for undo/redo
+// History management for undo/redo
 let stateHistory = {
-  past: [], //stack of previous application states
-  future: [], // queue of state available for redo
+  past: [],
+  future: [],
 };
 
-// stateReducer Pure Function
-const stateReducer = (state, event) => {
+// 3. Pure Reducer Function
+const StateReducer = (state, event) => {
   const { type, payload } = event;
 
   switch (type) {
@@ -55,20 +54,22 @@ const stateReducer = (state, event) => {
         });
         draft.lastUpdated = new Date().toISOString();
       });
+
     case "TOGGLE_TODO":
       return produce(state, (draft) => {
-        // ! check if this one is correct
         const todo = draft.todos.find((t) => t.id === payload.id);
         if (todo) {
           todo.completed = !todo.completed;
           draft.lastUpdated = new Date().toISOString();
         }
       });
+
     case "DELETE_TODO":
       return produce(state, (draft) => {
         draft.todos = draft.todos.filter((t) => t.id !== payload.id);
         draft.lastUpdated = new Date().toISOString();
       });
+
     case "UPDATE_TODO":
       return produce(state, (draft) => {
         const todo = draft.todos.find((t) => t.id === payload.id);
@@ -77,133 +78,129 @@ const stateReducer = (state, event) => {
           draft.lastUpdated = new Date().toISOString();
         }
       });
+
     case "SET_FILTER":
       return produce(state, (draft) => {
         draft.filter = payload.filter;
         draft.lastUpdated = new Date().toISOString();
       });
+
     case "UPDATE_USER":
       return produce(state, (draft) => {
-        // ! check this out
         Object.assign(draft.user, payload.user);
         draft.lastUpdated = new Date().toISOString();
       });
+
     case "CLEAR_COMPLETED":
       return produce(state, (draft) => {
         draft.todos = draft.todos.filter((t) => !t.completed);
         draft.lastUpdated = new Date().toISOString();
       });
+
     default:
       return state;
   }
 };
-// action logging curring function
+
+// 5. Action Logging (Curried Function)
 const createLogger = (prefix) => (event) => {
   const timestamp = new Date().toISOString();
   console.log(`[${prefix}] ${timestamp} - Action:`, {
     type: event.type,
     payload: event.payload,
   });
-  return event;
+  return event; // Return the event unchanged (pure function)
 };
 
-// sepcific loggers
+// Create specific loggers
 const actionLogger = createLogger("STATE_MANAGER");
 const debugLogger = createLogger("DEBUG");
 
-// dispatch
+// 4. Dispatch Mechanism
 const dispatchAction = (event) => {
+  // Log the action (pure function - no side effects on state)
   const loggedEvent = actionLogger(event);
-  // before updating save current History
+
+  // Save current state to history before updating
   stateHistory = produce(stateHistory, (draft) => {
     draft.past.push(deepClone(appState));
-    draft.future = [];
+    draft.future = []; // Clear future when new action is dispatched
   });
 
-  // apply the reducer
-  const newState = stateReducer(appState, loggedEvent);
+  // Apply the reducer (pure function)
+  const newState = StateReducer(appState, loggedEvent);
 
-  //! check this out
+  // Update the global state
   appState = newState;
+
   return appState;
 };
-// curried undo function
-const createUndoAction = (currentHistory) => (currentState) => {
+
+// 6. Undo and Redo Functionality (Fixed Implementation)
+
+// Pure function for undo logic
+const createUndoAction = (currentHistory, currentState) => {
   if (currentHistory.past.length === 0) {
-    //! check this out
-    console.warn("No action to undo");
+    console.warn("No actions to undo");
     return {
       newState: currentState,
       newHistory: currentHistory,
     };
   }
 
+  const previousState = currentHistory.past[currentHistory.past.length - 1];
   const newHistory = produce(currentHistory, (draft) => {
-    const previousState = draft.past.pop();
-    draft.future.unshift(currentState); // prepend on the first
-    return { previousState };
+    draft.past.pop();
+    draft.future.unshift(deepClone(currentState));
   });
 
   return {
-    newState: newHistory.previousState,
-    newHistory: {
-      past: newHistory.past,
-      future: newHistory.future,
-    },
+    newState: previousState,
+    newHistory: newHistory,
   };
 };
 
-// curried redo function
-const createRedoAction = (currentHistory) => (currentState) => {
-  if (currentHistory.future.length == 0) {
-    // ! check this out
-    console.warn("No action to redo");
+// Pure function for redo logic
+const createRedoAction = (currentHistory, currentState) => {
+  if (currentHistory.future.length === 0) {
+    console.warn("No actions to redo");
     return {
       newState: currentState,
       newHistory: currentHistory,
     };
   }
 
+  const nextState = currentHistory.future[0];
   const newHistory = produce(currentHistory, (draft) => {
-    const nextState = draft.future.shift();
-    draft.past.push(currentState);
-    return { nextState };
+    draft.future.shift();
+    draft.past.push(deepClone(currentState));
   });
 
   return {
-    newState: newHistory.nextState,
-    newHistory: {
-      past: newHistory.past,
-      future: newHistory.future,
-    },
+    newState: nextState,
+    newHistory: newHistory,
   };
 };
 
-// apply undo and redo functionality
-const undoAction = createUndoAction(stateHistory);
-const redoAction = createRedoAction(stateHistory);
-
-// undo wrapper function
+// Undo wrapper function
 const performUndo = () => {
-  const result = undoAction(appState);
+  const result = createUndoAction(stateHistory, appState);
   appState = result.newState;
   stateHistory = result.newHistory;
-  //! check this out
   console.log("Undo performed. Current state:", appState);
   return appState;
 };
 
-// redo wrapper function
+// Redo wrapper function
 const performRedo = () => {
-  const result = redoAction(appState);
+  const result = createRedoAction(stateHistory, appState);
   appState = result.newState;
   stateHistory = result.newHistory;
-  //! check this out
-  console.log("Redo performed. Current State:", appState);
+  console.log("Redo performed. Current state:", appState);
   return appState;
 };
 
-// acdessing the state
+// Utility functions for state access (pure functions)
 const getCurrentState = () => deepClone(appState);
 
 const getFilteredTodos = (filter = null) => {
@@ -221,13 +218,13 @@ const getFilteredTodos = (filter = null) => {
   }
 };
 
-// Higher Order Function for creating action
+// Higher-order function for creating action creators (pure functions)
 const createActionCreator = (type) => (payload) => ({
   type,
   payload,
 });
 
-// action creators
+// Action creators
 const addTodo = createActionCreator("ADD_TODO");
 const toggleTodo = createActionCreator("TOGGLE_TODO");
 const deleteTodo = createActionCreator("DELETE_TODO");
@@ -236,13 +233,13 @@ const setFilter = createActionCreator("SET_FILTER");
 const updateUser = createActionCreator("UPDATE_USER");
 const clearCompleted = createActionCreator("CLEAR_COMPLETED");
 
-// function compostiton
+// Function composition utility
 const compose =
   (...fns) =>
   (value) =>
     fns.reduceRight((acc, fn) => fn(acc), value);
 
-// function pipeline
+// Pipeline utility for chaining operations
 const pipe =
   (...fns) =>
   (value) =>
@@ -268,13 +265,33 @@ dispatchAction(toggleTodo({ id: firstTodoId }));
 
 console.log("After toggling first todo:", getCurrentState());
 
+// Test filtering
+console.log("\n=== Testing Filtering ===");
+console.log("All todos:", getFilteredTodos("all").length);
+console.log("Completed todos:", getFilteredTodos("completed").length);
+console.log("Pending todos:", getFilteredTodos("pending").length);
+
 // Test undo/redo
 console.log("\n=== Testing Undo/Redo ===");
-performUndo();
-performUndo();
-performRedo();
+console.log("States in history before undo:", stateHistory.past.length);
+performUndo(); // Should undo the toggle
+console.log("States in history after first undo:", stateHistory.past.length);
+performUndo(); // Should undo the last todo addition
+console.log("States in history after second undo:", stateHistory.past.length);
+performRedo(); // Should redo the last todo addition
+console.log("States in history after redo:", stateHistory.past.length);
 
 console.log("Final state after undo/redo:", getCurrentState());
+
+// Test function composition
+console.log("\n=== Testing Function Composition ===");
+const getTodoCount = (state) => state.todos.length;
+const isEven = (n) => n % 2 === 0;
+const formatMessage = (isEven) =>
+  isEven ? "Even number of todos" : "Odd number of todos";
+
+const checkTodoCountParity = compose(formatMessage, isEven, getTodoCount);
+console.log("Todo count parity:", checkTodoCountParity(getCurrentState()));
 
 // Export the public API
 const StateManager = {
@@ -312,4 +329,3 @@ if (typeof module !== "undefined" && module.exports) {
 } else if (typeof window !== "undefined") {
   window.StateManager = StateManager;
 }
-//
