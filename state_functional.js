@@ -106,4 +106,25 @@ const createLogger = (prefix) => (event) => {
   });
   return event;
 };
+
+// sepcific loggers
+const actionLogger = createLogger("STATE_MANAGER");
+const debugLogger = createLogger("DEBUG");
+
+// dispatch
+const dispatchAction = (event) => {
+  const loggedEvent = actionLogger(event);
+  // beffore updateing save current History
+  stateHistory = produce(stateHistory, (draft) => {
+    draft.past.push(deepClone(appState));
+    draft.future = [];
+  });
+
+  // apply the reducer
+  const newState = stateReducer(appState, loggedEvent);
+
+  //! check this out
+  appState = newState;
+  return appState;
+};
 //
