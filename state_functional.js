@@ -13,4 +13,23 @@ const deepClone = (obj) => {
     return clonedObj;
   }
 };
+
+const produce = (state, updater) => {
+  const draft = deepClone(state);
+  updater(draft);
+  return draft;
+};
+
+// single source of Truth: appState
+let appState = {
+  todos: [],
+  filter: "all",
+  user: {
+    name: "Guest",
+    preferences: {
+      theme: "Light",
+    },
+  },
+  lastUpdated: new Date().toISOString(),
+};
 //
