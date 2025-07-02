@@ -130,6 +130,7 @@ const dispatchAction = (event) => {
 // curried undo function
 const createUndoAction = (currentHistory) => (currentState) => {
   if (currentHistory.past.length === 0) {
+    //! check this out
     console.warn("No action to undo");
     return {
       newState: currentState,
@@ -151,4 +152,35 @@ const createUndoAction = (currentHistory) => (currentState) => {
     },
   };
 };
+
+// curried redo function
+const createRedoAction = (currentHistory) => (currentState) => {
+  if (currentHistory.future.length == 0) {
+    // ! check this out
+    console.warn("No action to redo");
+    return {
+      newState: currentState,
+      newHistory: currentHistory,
+    };
+  }
+
+  const newHistory = produce(currentHistory, (draft) => {
+    const nextState = draft.future.shift();
+    draft.past.push(currentState);
+    return { nextState };
+  });
+
+  return {
+    newState: newHistory.nextState,
+    newHistory: {
+      past: newHistory.past,
+      future: newHistory.future,
+    },
+  };
+};
+
+// apply undo and redo functionality
+const undoAction = createUndoAction(stateHistory);
+const redoAction = createRedoAction(stateHistory);
+
 //
