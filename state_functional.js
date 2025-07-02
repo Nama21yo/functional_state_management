@@ -97,5 +97,13 @@ const stateReducer = (state, event) => {
       return state;
   }
 };
-
+// action logging curring function
+const createLogger = (prefix) => (event) => {
+  const timestamp = new Date().toISOString();
+  console.log(`[${prefix}] ${timestamp} - Action:`, {
+    type: event.type,
+    payload: event.payload,
+  });
+  return event;
+};
 //
