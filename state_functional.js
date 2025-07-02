@@ -14,6 +14,7 @@ const deepClone = (obj) => {
   }
 };
 
+// implementing Immer
 const produce = (state, updater) => {
   const draft = deepClone(state);
   updater(draft);
@@ -23,7 +24,7 @@ const produce = (state, updater) => {
 // single source of Truth: appState
 let appState = {
   todos: [],
-  filter: "all",
+  filter: "all", // 'all', 'completed', 'pending'
   user: {
     name: "Guest",
     preferences: {
@@ -32,4 +33,12 @@ let appState = {
   },
   lastUpdated: new Date().toISOString(),
 };
+
+// history management for undo/redo
+let stateHistory = {
+    past : [], //stack of previous application states
+    future : [] // queue of state available for redo
+}
+
+
 //
