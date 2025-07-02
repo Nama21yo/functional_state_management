@@ -183,4 +183,62 @@ const createRedoAction = (currentHistory) => (currentState) => {
 const undoAction = createUndoAction(stateHistory);
 const redoAction = createRedoAction(stateHistory);
 
+// undo wrapper function
+const performUndo = () => {
+  const result = undoAction(appState);
+  appState = result.newState;
+  stateHistory = result.newHistory;
+  //! check this out
+  console.log("Undo performed. Current state:", appState);
+  return appState;
+};
+
+// redo wrapper function
+const performRedo = () => {
+  const result = redoAction(appState);
+  appState = result.newState;
+  stateHistory = result.newHistory;
+  //! check this out
+  console.log("Redo performed. Current State:", appState);
+  return appState;
+};
+
+// acdessing the state
+const getCurrentState = () => deepClone(appState);
+
+const getFilteredTodos = (filter = null) => {
+  const currentFilter = filter || appState.filter;
+  const todos = appState.todos;
+
+  switch (currentFilter) {
+    case "completed":
+      return todos.filter((todo) => todo.completed);
+    case "pending":
+      return todos.filter((todo) => !todo.completed);
+    case "all":
+    default:
+      return todos;
+  }
+};
+
+// Higher Order Function for creating action
+const createActionCreator = (type) => (payload) => ({
+  type,
+  payload,
+});
+
+// action creators
+const addTodo = createActionCreator("ADD_TODO");
+const toggleTodo = createActionCreator("TOGGLE_TODO");
+const deleteTodo = createActionCreator("DELETE_TODO");
+const updateTodo = createActionCreator("UPDATE_TODO");
+const setFilter = createActionCreator("SET_FILTER");
+const updateUser = createActionCreator("UPDATE_USER");
+const clearCompleted = createActionCreator("CLEAR_COMPLETED");
+
+// function compostiton
+const compose =
+  (...fns) =>
+  (value) =>
+    fns.reduceRight((acc, fn) => fn(acc), value);
 //
