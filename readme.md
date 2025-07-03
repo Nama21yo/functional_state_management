@@ -2,6 +2,9 @@
 
 A lightweight, pure functional programming implementation of state management with immutable updates, time-travel debugging, and zero dependencies.
 
+![Screenshot from 2025-07-03 12-36-17](https://github.com/user-attachments/assets/aebe60b6-78f5-47a1-a810-d2cfa32b99a8)
+
+
 ## 🚀 Features
 
 - **100% Pure Functions**: All state transformations are side-effect free
